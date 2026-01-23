@@ -11,8 +11,15 @@ return new class extends Migration
      */
     public function up(): void
     {
+        Schema::dropIfExists('messages');
         Schema::create('messages', function (Blueprint $table) {
             $table->id();
+            $table->string('chat_id')->index(); // stores "uid1_uid2"
+            $table->foreignId('sender_id')->constrained('users')->onDelete('cascade');
+            $table->text('text')->nullable();
+            $table->string('type')->default('text');
+            $table->json('media')->nullable();
+            $table->timestamp('read_at')->nullable();
             $table->timestamps();
         });
     }
