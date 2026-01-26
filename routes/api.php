@@ -20,6 +20,7 @@ Route::get('/user', function (Request $request) {
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/chats/{chatId}/messages', [\App\Http\Controllers\Api\ChatController::class, 'sendMessage']);
+    Route::get('/messages/unread-count', [\App\Http\Controllers\Api\ChatController::class, 'getUnreadCount']);
     Route::get('/chats/{chatId}/messages', [\App\Http\Controllers\Api\ChatController::class, 'getMessages']);
     Route::post('/chats/{chatId}/read', [\App\Http\Controllers\Api\ChatController::class, 'markAsRead']);
     Route::get('/chats', [\App\Http\Controllers\Api\ChatController::class, 'getChats']);

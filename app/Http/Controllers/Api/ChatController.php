@@ -305,4 +305,25 @@ class ChatController extends Controller
         
         return response()->json(['status' => 'success', 'marked_count' => $affectedRows]);
     }
+    public function getUnreadCount(Request $request)
+    {
+        $user = $request->user();
+        $userId = $user->id;
+        $googleId = $user->google_id;
+        
+        $count = \App\Models\Message::whereNull('read_at')
+            ->where('sender_id', '!=', $userId)
+            ->where(function($q) use ($userId, $googleId) {
+                $q->where('chat_id', 'like', "{$userId}_%")
+                  ->orWhere('chat_id', 'like', "%_{$userId}");
+                  
+                if ($googleId) {
+                    $q->orWhere('chat_id', 'like', "{$googleId}_%")
+                      ->orWhere('chat_id', 'like', "%_{$googleId}");
+                }
+            })
+            ->count();
+            
+        return response()->json(['count' => $count]);
+    }
 }
