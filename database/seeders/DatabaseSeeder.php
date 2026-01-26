@@ -16,10 +16,19 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         // User::factory(10)->create();
+        
+        // Ensure at least one user exists for Auth login
+        if (!\App\Models\User::where('email', 'admin@example.com')->exists()) {
+             \App\Models\User::factory()->create([
+                'name' => 'Admin User',
+                'email' => 'admin@example.com',
+                'password' => bcrypt('password'), // Or secure password
+             ]);
+        }
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+        $this->call([
+            VenueSeeder::class,
+            BookingSeeder::class,
         ]);
     }
 }

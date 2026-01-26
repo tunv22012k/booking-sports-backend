@@ -30,4 +30,19 @@ Route::middleware('auth:sanctum')->group(function () {
     
     // Reactions
     Route::post('/messages/{messageId}/react', [\App\Http\Controllers\Api\ReactionController::class, 'react']);
+    
+    // Booking System
+    Route::get('/bookings', [\App\Http\Controllers\Api\BookingController::class, 'index']);
+    Route::post('/bookings', [\App\Http\Controllers\Api\BookingController::class, 'store']);
+    
+    // Marketplace
+    Route::get('/marketplace', [\App\Http\Controllers\Api\MarketplaceController::class, 'index']);
+    Route::post('/marketplace/{id}/purchase', [\App\Http\Controllers\Api\MarketplaceController::class, 'purchase']);
 });
+
+// Public Routes (or at least accessible without user context if needed, but for now outside auth group if public)
+// Actually map usually requires logged in state in this app? 
+// The layout checks auth. But let's keep venues accessible.
+Route::get('/venues', [\App\Http\Controllers\Api\VenueController::class, 'index']);
+Route::get('/venues/{id}', [\App\Http\Controllers\Api\VenueController::class, 'show']);
+Route::get('/venues/{id}/bookings', [\App\Http\Controllers\Api\VenueController::class, 'getBookings']);
