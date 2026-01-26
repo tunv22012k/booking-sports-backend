@@ -11,8 +11,35 @@ class UserController extends Controller
     public function index(Request $request)
     {
         $currentUser = $request->user();
-        $users = User::where('id', '!=', $currentUser->id)->get();
-        return response()->json($users);
+        $perPage = min($request->input('per_page', 20), 100); // Max 100 per page
+        $search = $request->input('search', '');
+        
+        $query = User::where('id', '!=', $currentUser->id);
+        
+        // Apply search filter
+        if (!empty($search)) {
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+        
+        // Order by most recently active
+        $query->orderBy('updated_at', 'desc');
+        
+        // Paginate
+        $users = $query->paginate($perPage);
+        
+        return response()->json([
+            'data' => $users->items(),
+            'meta' => [
+                'current_page' => $users->currentPage(),
+                'last_page' => $users->lastPage(),
+                'per_page' => $users->perPage(),
+                'total' => $users->total(),
+                'has_more' => $users->hasMorePages(),
+            ]
+        ]);
     }
 
     public function show($id)

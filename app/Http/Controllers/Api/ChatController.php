@@ -220,7 +220,7 @@ class ChatController extends Controller
                 }
             }
             
-            $u->last_message = $lastMsg ? $lastMsg->text : null;
+            $u->last_message = $lastMsg ? ($lastMsg->text ?: ($lastMsg->type === 'image' ? '[Hình ảnh]' : ($lastMsg->type === 'video' ? '[Video]' : 'Tin nhắn mới'))) : null;
             $u->last_message_sender_id = $lastMsg ? $lastMsg->sender_id : null;
             $u->last_message_read_at = $lastMsg ? $lastMsg->read_at : null;
             $u->last_message_time = $lastMsg ? $lastMsg->created_at : null;
