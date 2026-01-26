@@ -65,8 +65,8 @@ class ChatController extends Controller
                 $recipientChannelId = $recipientUser->google_id ?? $recipientUser->id;
                 \Illuminate\Support\Facades\Log::info("ChatController: Broadcasting to channel user: " . $recipientChannelId);
                 
-                // Load sender so frontend can access sender's google_id to match with sidebar list
-                $message->load('sender');
+                // Load sender and reactions so frontend can access sender's google_id to match with sidebar list
+                $message->load(['sender', 'reactions']);
                 
                 broadcast(new \App\Events\UserReceivedMessage($message, $recipientChannelId));
 
@@ -92,7 +92,7 @@ class ChatController extends Controller
         $before = $request->input('before');
 
         $query = \App\Models\Message::where('chat_id', $chatId)
-            ->with('sender'); // Load sender to access google_id in frontend for alignment check
+            ->with(['sender', 'reactions']); // Load sender and reactions
 
         if ($before) {
             $query->where('created_at', '<', $before);
@@ -234,28 +234,59 @@ class ChatController extends Controller
     {
         $user = $request->user();
         
+        // Ensure consistent chatId sorting (internal_id vs google_id complexity handled by sorting)
+        // If frontend sends 'B_A' but DB stores 'A_B', we need to match DB.
+        // Assuming DB creation logic always sorts IDs.
+        $parts = explode('_', $chatId);
+        if (count($parts) === 2) {
+            sort($parts);
+            $chatId = implode('_', $parts);
+        }
+
         // Update all unread messages in this chat sent by OTHER users
         // i.e., messages where sender_id != me AND read_at IS NULL
+        // We need to be careful: $user->id is internal ID.
+        // But message->sender_id might be Google ID if that's how it was stored (though we prefer internal).
+        // Let's assume message->sender_id matches either user->id OR user->google_id
         
-        $affectedRows = \App\Models\Message::where('chat_id', $chatId)
-            ->where('sender_id', '!=', $user->id) 
-            ->whereNull('read_at')
-            ->update(['read_at' => now()]);
+        $query = \App\Models\Message::where('chat_id', $chatId)
+            ->whereNull('read_at');
+            
+        // Exclude my own messages (I don't "read" my own messages)
+        // sender_id in DB is always the internal ID (bigint), so we only filter by $user->id.
+        // Including google_id (string) causes "Numeric value out of range" if it's too large for bigint.
+        $query->where('sender_id', '!=', $user->id);
+        
+        $affectedRows = $query->update(['read_at' => now()]);
 
         if ($affectedRows > 0) {
              // Broadcast event to the OTHER user(s) in the chat
              // Extract other user ID from chatId
-             $parts = explode('_', $chatId);
-             if (count($parts) === 2) {
-                 // Determine which ID is 'other'
-                 $isPart0Me = ($parts[0] == $user->id || $parts[0] == $user->google_id);
-                 $otherId = $isPart0Me ? $parts[1] : $parts[0];
-                 
+             // Re-parse parts (reuse sorted parts)
+             
+             // Determine which ID is 'other'
+             // One of them should match one of $myIds
+             $myIds = array_filter([$user->id, $user->google_id]);
+             $otherId = null;
+             
+             if (in_array($parts[0], $myIds)) {
+                 $otherId = $parts[1];
+             } elseif (in_array($parts[1], $myIds)) {
+                 $otherId = $parts[0];
+             } else {
+                 // Fallback: If neither matches (weird), maybe type mismatch?
+                 // Try string comparison
+                 if (in_array((string)$parts[0], array_map('strval', $myIds))) $otherId = $parts[1];
+                 elseif (in_array((string)$parts[1], array_map('strval', $myIds))) $otherId = $parts[0];
+             }
+
+             if ($otherId) {
                  // Handle potential BigInt overflow for Google IDs
                  // If ID is numeric but very long (>18 chars), it's likely a Google ID, not a Postgres BigInt ID.
                  // Postgres BigInt max is 9223372036854775807 (19 digits).
                  
                  $otherUser = User::query();
+                 // If clearly a Google ID string
                  if (is_numeric($otherId) && strlen((string)$otherId) > 18) {
                      $otherUser->where('google_id', (string)$otherId);
                  } else {

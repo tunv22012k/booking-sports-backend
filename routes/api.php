@@ -26,4 +26,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/users', [\App\Http\Controllers\Api\UserController::class, 'index']);
     Route::get('/users/{id}', [\App\Http\Controllers\Api\UserController::class, 'show']);
     Route::post('/logout', [\App\Http\Controllers\Api\AuthController::class, 'logout']);
+    
+    // Reactions
+    Route::post('/messages/{messageId}/react', [\App\Http\Controllers\Api\ReactionController::class, 'react']);
 });
