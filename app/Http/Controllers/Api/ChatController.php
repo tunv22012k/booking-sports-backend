@@ -112,42 +112,91 @@ class ChatController extends Controller
     {
         $user = $request->user();
         $userId = $user->id;
-
-        // Find all chat_ids where this user is involved
-        // Pattern: "min_max". user ID could be at start or end.
-        // We can check if distinct chat_ids contain the user ID.
-        // Note: Simple LIKE query might match "1" in "10". 
-        // Better: chat_id is always "ID_ID". 
-        // But IDs are bigints.
-        
-        // Let's rely on string parsing for now or exact matches if we knew the format.
-        // Format: sorted(uid1, uid2).join('_').
-        
         $googleId = $user->google_id;
+        $perPage = $request->input('per_page', 20);
+        $search = $request->input('search');
+        $wantsPagination = $request->has('page');
 
+        // Aggregation to get chat_ids ordered by last message time
         $query = \App\Models\Message::query()
             ->select('chat_id')
-            ->distinct()
-            ->where(function ($q) use ($userId) {
+            ->selectRaw('MAX(created_at) as last_activity')
+            ->groupBy('chat_id')
+            ->orderBy('last_activity', 'desc');
+
+        if ($search) {
+            // Find users matching both name and email for better search
+            $matchingUsers = User::where('name', 'like', "%{$search}%")
+                ->orWhere('email', 'like', "%{$search}%")
+                ->get();
+
+            $candidateChatIds = [];
+            $myIds = array_filter([$userId, $googleId]);
+
+            foreach ($matchingUsers as $u) {
+                // Skip myself
+                if ($u->id == $userId) continue;
+
+                $theirIds = array_filter([$u->id, $u->google_id]);
+                foreach ($myIds as $myId) {
+                    foreach ($theirIds as $theirId) {
+                        $parts = [$myId, $theirId];
+                        sort($parts);
+                        $candidateChatIds[] = implode('_', $parts);
+                    }
+                }
+            }
+            
+            if (empty($candidateChatIds)) {
+                // If no users found or no potential chat IDs, force empty result
+                $query->whereRaw('1 = 0');
+            } else {
+                $query->whereIn('chat_id', $candidateChatIds);
+            }
+        } else {
+            // Standard filter: Chats involving me
+            $query->where(function ($q) use ($userId, $googleId) {
                 $q->where('chat_id', 'like', "{$userId}_%")
                   ->orWhere('chat_id', 'like', "%_{$userId}");
-            });
-
-        if ($googleId) {
-            $query->orWhere(function ($q) use ($googleId) {
-                $q->where('chat_id', 'like', "{$googleId}_%")
-                  ->orWhere('chat_id', 'like', "%_{$googleId}");
+                  
+                if ($googleId) {
+                    $q->orWhere('chat_id', 'like', "{$googleId}_%")
+                      ->orWhere('chat_id', 'like', "%_{$googleId}");
+                }
             });
         }
 
-        $chatIds = $query->pluck('chat_id');
-            
+        if ($wantsPagination) {
+            $paginatedIds = $query->paginate($perPage);
+            $chatIds = $paginatedIds->pluck('chat_id');
+        } else {
+            $chatIds = $query->pluck('chat_id');
+        }
+
+        // Logic to extract other user IDs and fetch details (shared)
+        $usersData = $this->fetchChatUsers($chatIds, $userId, $googleId);
+        
+        // Return appropriate response
+        if ($wantsPagination) {
+            // We need to shape the data to match standard Pagination Resource
+            // but preserving the 'users' array structure inside 'data'
+            $response = $paginatedIds->toArray();
+            $response['data'] = $usersData; // Replace aggregated chat items with full user objects
+            return response()->json($response);
+        }
+
+        return response()->json($usersData);
+    }
+    
+    // Helper function to fetch users and map messages given a list of chatIds
+    private function fetchChatUsers($chatIds, $userId, $googleId) {
+        if ($chatIds->isEmpty()) return [];
+
         // Extract other user IDs
         $otherUserIds = [];
         foreach ($chatIds as $cId) {
             $parts = explode('_', $cId);
             if (count($parts) === 2) {
-                // Check against both id and google_id to determine which part is "me"
                 $isPart0Me = ($parts[0] == $userId || $parts[0] == $googleId);
                 $isPart1Me = ($parts[1] == $userId || $parts[1] == $googleId);
 
@@ -161,7 +210,6 @@ class ChatController extends Controller
         
         $otherUserIds = array_unique($otherUserIds);
         
-        // Segregate IDs to avoid Postgres integer overflow
         $safeIds = [];
         $allIdsAsString = [];
         
@@ -172,16 +220,7 @@ class ChatController extends Controller
             }
         }
 
-        // Fetch the latest message for each valid chat_id
-        // We use a subquery or simply fetch all latest messages for these chat IDs
-        // Since we have distinct chatIds, let's fetch the latest message for each.
-        // Optimization: In a real app, use a window function or a dedicated 'conversations' table.
-        // Here: Select * where In chatIds order by created_at desc.
-        // We can't easily valid "latest per group" in Eloquent without raw SQL.
-        // Simpler approach for now: Fetch all messages for these chats, group by chat_id, take last.
-        // Warning: This is heavy if history is huge.
-        // Better: Use a raw query to get the ID of the latest message per chat.
-        
+        // Fetch latest messages for these chats
         $latestMessages = \App\Models\Message::whereIn('chat_id', $chatIds)
             ->orderBy('created_at', 'desc')
             ->get()
@@ -192,11 +231,7 @@ class ChatController extends Controller
             ->get();
             
         // Map messages to users
-        $users->map(function($u) use ($latestMessages, $userId, $googleId) {
-            // Reconstruct possible chat IDs to find the match
-            // The chat ID between 'me' ($userId or $googleId) and 'them' ($u->id or $u->google_id)
-            // We need to check all combinations because we don't know which ID type was used to create the chat
-            
+        $mapped = $users->map(function($u) use ($latestMessages, $userId, $googleId) {
             $myIds = array_filter([$userId, $googleId]);
             $theirIds = array_filter([$u->id, $u->google_id]);
             
@@ -210,9 +245,6 @@ class ChatController extends Controller
                     
                     $found = $latestMessages->firstWhere('chat_id', $chatId);
                     if ($found) {
-                        // If we found a message, pick it.
-                        // If there are multiple chat versions (e.g. id_id vs google_google), prefer the most recent?
-                        // For now just taking the first found.
                         if (!$lastMsg || $found->created_at > $lastMsg->created_at) {
                              $lastMsg = $found;
                         }
@@ -226,8 +258,9 @@ class ChatController extends Controller
             $u->last_message_time = $lastMsg ? $lastMsg->created_at : null;
             return $u;
         });
-        
-        return response()->json($users); // Return users array directly to match Sidebar expectation
+
+        // SORT users by last_message_time DESC to match the pagination order
+        return $mapped->sortByDesc('last_message_time')->values()->all();
     }
 
     public function markAsRead(Request $request, $chatId)
