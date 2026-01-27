@@ -43,15 +43,16 @@ class VenueController extends Controller
 
     public function getBookings($id, \Illuminate\Http\Request $request)
     {
-        // Get bookings for all courts in this venue for a specific date
+        // Get CONFIRMED bookings for all courts in this venue for a specific date
+        // Pending bookings are handled separately via getPendingSlots
         $date = $request->input('date', now()->toDateString());
         
         $bookings = \App\Models\Booking::whereHas('court', function($q) use ($id) {
             $q->where('venue_id', $id);
         })
         ->where('date', $date)
-        ->where('status', '!=', 'cancelled')
-        ->get(['court_id', 'start_time', 'end_time']); // Return only necessary fields
+        ->whereIn('status', ['confirmed', 'completed']) // Only confirmed bookings
+        ->get(['court_id', 'start_time', 'end_time']);
 
         return response()->json($bookings);
     }

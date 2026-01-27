@@ -186,7 +186,7 @@ class BookingController extends Controller
             ->where('date', $date)
             ->where('status', 'pending')
             ->where('pending_expires_at', '>', now())
-            ->get(['court_id', 'start_time', 'end_time', 'pending_expires_at']);
+            ->get(['id', 'court_id', 'user_id', 'start_time', 'end_time', 'pending_expires_at']);
 
         return response()->json($pendingBookings);
     }

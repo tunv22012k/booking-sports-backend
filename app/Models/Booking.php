@@ -13,6 +13,7 @@ class Booking extends Model
         'is_for_transfer' => 'boolean',
         'start_time' => 'datetime:H:i', // Format when serializing
         'end_time' => 'datetime:H:i',
+        'pending_expires_at' => 'datetime',
     ];
 
     public function user()
