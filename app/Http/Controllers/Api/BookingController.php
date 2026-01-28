@@ -15,11 +15,20 @@ class BookingController extends Controller
 
     public function index(Request $request)
     {
-        $bookings = Booking::with(['court.venue'])
-            ->where('user_id', $request->user()->id)
-            ->orderBy('date', 'desc')
+        $limit = $request->input('limit', 10);
+        $status = $request->input('status');
+
+        $query = Booking::with(['court.venue'])
+            ->where('user_id', $request->user()->id);
+
+        if ($status) {
+            $statuses = explode(',', $status);
+            $query->whereIn('status', $statuses);
+        }
+
+        $bookings = $query->orderBy('date', 'desc')
             ->orderBy('start_time', 'desc')
-            ->get();
+            ->paginate($limit);
             
         return response()->json($bookings);
     }
@@ -231,5 +240,28 @@ class BookingController extends Controller
             $booking->update(['status' => 'cancelled']);
             broadcast(new \App\Events\BookingPendingEvent($booking, 'expired'))->toOthers();
         }
+    }
+    public function transfer(Request $request, $id)
+    {
+        $booking = Booking::findOrFail($id);
+
+        // Authorization check
+        if ($booking->user_id !== $request->user()->id) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        if ($booking->status !== 'confirmed') {
+            return response()->json(['message' => 'Only confirmed bookings can be transferred'], 400);
+        }
+
+        if ($booking->transfer_status === 'available') {
+            return response()->json(['message' => 'Booking is already for transfer'], 400);
+        }
+
+        $booking->update([
+            'transfer_status' => 'available'
+        ]);
+
+        return response()->json(['message' => 'Booking marked for transfer successfully', 'data' => $booking]);
     }
 }

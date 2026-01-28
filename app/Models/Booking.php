@@ -14,6 +14,7 @@ class Booking extends Model
         'start_time' => 'datetime:H:i', // Format when serializing
         'end_time' => 'datetime:H:i',
         'pending_expires_at' => 'datetime',
+        'extras' => 'array',
     ];
 
     public function user()
