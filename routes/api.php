@@ -42,6 +42,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // Marketplace
     Route::get('/marketplace', [\App\Http\Controllers\Api\MarketplaceController::class, 'index']);
     Route::post('/marketplace/{id}/purchase', [\App\Http\Controllers\Api\MarketplaceController::class, 'purchase']);
+    
+    // Reviews
+    Route::post('/venues/{id}/reviews', [\App\Http\Controllers\Api\ReviewController::class, 'store']);
 });
 
 // Public Routes
