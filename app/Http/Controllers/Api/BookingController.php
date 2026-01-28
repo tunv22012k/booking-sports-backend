@@ -91,6 +91,7 @@ class BookingController extends Controller
             'is_paid' => false,
             'pending_expires_at' => now()->addMinutes(self::PENDING_TIMEOUT_MINUTES),
             'payment_code' => $paymentCode,
+            'extras' => $validated['extras'] ?? null,
         ]);
 
         // Load relationships for response

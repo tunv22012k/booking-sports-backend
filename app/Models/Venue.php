@@ -8,6 +8,13 @@ class Venue extends Model
 {
     protected $guarded = [];
 
+    protected $casts = [
+        'price' => 'integer',
+        'rating' => 'float',
+        'lat' => 'float',
+        'lng' => 'float',
+    ];
+
     public function courts()
     {
         return $this->hasMany(Court::class);
