@@ -11,18 +11,35 @@ class VenueController extends Controller
     {
         $query = \App\Models\Venue::query();
 
+        // Search filter
         if ($request->has('search')) {
             $search = $request->input('search');
             $query->where('name', 'like', "%{$search}%")
                   ->orWhere('address', 'like', "%{$search}%");
         }
         
+        // Type filter
         if ($request->has('type')) {
             $query->where('type', $request->input('type'));
         }
 
-        // Eager load necessary relations
-        return response()->json($query->with(['courts', 'extras', 'reviews'])->get());
+        // Location-based Sorting (PostGIS)
+        if ($request->has('lat') && $request->has('lng')) {
+            $lat = $request->input('lat');
+            $lng = $request->input('lng');
+
+            // Use PostGIS for distance (in KM) and sorting
+            // ST_MakePoint(lng, lat) because PostGIS uses (x, y) order
+            $pointSql = "ST_SetSRID(ST_MakePoint(?, ?), 4326)";
+            
+            $query->selectRaw("*, (ST_Distance(coordinates, $pointSql) / 1000) as distance", [$lng, $lat])
+                  ->orderByRaw("coordinates <-> $pointSql", [$lng, $lat]);
+        }
+
+        $limit = $request->input('limit', 12);
+
+        // Eager load necessary relations and paginate
+        return response()->json($query->with(['courts', 'extras', 'reviews'])->paginate($limit));
     }
 
     public function show($id)
