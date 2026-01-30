@@ -12,85 +12,35 @@ class VenueSeeder extends Seeder
      */
     public function run(): void
     {
-        $venues = [
+        // 1. Realistic Manual Data (Da Nang) - Kept for specific testing
+        $manualVenues = [
             [
                 'name' => 'Sân Cầu Lông Quân Khu 5',
                 'type' => 'badminton',
                 'location' => ['lat' => 16.0372, 'lng' => 108.2120],
                 'address' => '7 Duy Tân, Hòa Cường Bắc, Hải Châu, Đà Nẵng',
-                'price_info' => '80,000 VND/h',
+                'price' => 80000,
+                'pricing_type' => 'hour',
                 'description' => 'Sân tiêu chuẩn thi đấu, thoáng mát, trung tâm thành phố.',
-                'courts' => [
-                    ['name' => 'Sân 1'],
-                    ['name' => 'Sân 2'],
-                    // Generate Sân 3 - Sân 10
-                ],
-                'extras' => [
-                    ['name' => 'Thuê vợt', 'price' => 20000],
-                    ['name' => 'Nước suối', 'price' => 10000],
-                    ['name' => 'Trọng tài', 'price' => 50000],
-                ],
-                'reviews' => [
-                    ['userName' => 'Nguyen Van A', 'rating' => 5, 'comment' => 'Sân đẹp, thoáng mát.', 'date' => '2023-10-20'],
-                    ['userName' => 'Tran Thi B', 'rating' => 4, 'comment' => 'Giá cả hợp lý.', 'date' => '2023-10-21'],
-                ]
             ],
             [
                 'name' => 'Sân Bóng Đá Tuyên Sơn',
                 'type' => 'football',
                 'location' => ['lat' => 16.0336, 'lng' => 108.2238],
                 'address' => 'Làng thể thao Tuyên Sơn, Hải Châu, Đà Nẵng',
-                'price_info' => '300,000 VND/trận',
+                'price' => 300000,
+                'pricing_type' => 'match',
                 'description' => 'Cụm sân cỏ nhân tạo lớn nhất Đà Nẵng, dịch vụ tốt.',
-                'courts' => [
-                    ['name' => 'Sân A']
-                ],
-                'extras' => [
-                    ['name' => 'Áo bib', 'price' => 10000],
-                    ['name' => 'Trọng tài', 'price' => 100000],
-                    ['name' => 'Nước bình 20L', 'price' => 20000],
-                ],
-                'reviews' => [
-                    ['userName' => 'Le Van C', 'rating' => 5, 'comment' => 'Sân cỏ chất lượng tốt.', 'date' => '2023-10-22'],
-                ]
             ],
             [
                 'name' => 'Sân Tennis Công Viên 29/3',
                 'type' => 'tennis',
                 'location' => ['lat' => 16.0610, 'lng' => 108.2045],
                 'address' => 'Công viên 29/3, Thanh Khê, Đà Nẵng',
-                'price_info' => '150,000 VND/h',
+                'price' => 150000,
+                'pricing_type' => 'hour',
                 'description' => 'Không gian xanh mát, yên tĩnh, mặt sân cứng.',
-                'courts' => [
-                    ['name' => 'Sân Chính']
-                ],
-                'extras' => [
-                    ['name' => 'Nhặt bóng', 'price' => 50000],
-                ],
-                'reviews' => []
             ],
-            [
-                'name' => 'Sân Cầu Lông Chi Lăng',
-                'type' => 'badminton',
-                'location' => ['lat' => 16.0718, 'lng' => 108.2215],
-                'address' => 'SVĐ Chi Lăng, Hải Châu, Đà Nẵng',
-                'price_info' => '70,000 VND/h',
-                'description' => 'Sân lâu đời, giá bình dân, cộng đồng chơi đông.',
-                'courts' => [], // Will need realistic courts for booking
-                'extras' => [],
-                'reviews' => []
-            ],
-            [
-                'name' => 'Sân Bóng Chuyên Việt',
-                'type' => 'football',
-                'location' => ['lat' => 16.0594, 'lng' => 108.2435],
-                'address' => 'An Đồn, Sơn Trà, Đà Nẵng',
-                'price_info' => '350,000 VND/trận',
-                'description' => 'Sân mới, cỏ đẹp, gần biển.',
-                'courts' => [],
-                'extras' => [],
-                'reviews' => []
-            ]
         ];
 
         // Ensure we have a default user for reviews
@@ -99,50 +49,82 @@ class VenueSeeder extends Seeder
             'email' => 'reviewer@example.com',
         ]);
 
-        foreach ($venues as $v) {
+        // Insert Manual Venues
+        foreach ($manualVenues as $v) {
+            // Check if exists to avoid dupes on re-seed
+            if (\App\Models\Venue::where('name', $v['name'])->exists()) continue;
+
             $venue = \App\Models\Venue::create([
                 'name' => $v['name'],
                 'type' => $v['type'],
                 'lat' => $v['location']['lat'],
                 'lng' => $v['location']['lng'],
                 'address' => $v['address'],
-                'price_info' => $v['price_info'],
+                'price' => $v['price'],
+                'pricing_type' => $v['pricing_type'],
                 'description' => $v['description'],
-                'rating' => 5.0, // Default or calc
+                'rating' => 5.0,
             ]);
 
-            // Courts
-            if (empty($v['courts'])) {
-                // If empty, generate default court "Sân 1"
-                $venue->courts()->create(['name' => 'Sân 1', 'type' => $v['type']]);
-                if ($v['name'] == 'Sân Cầu Lông Chi Lăng') {
-                     $venue->courts()->create(['name' => 'Sân 3', 'type' => $v['type']]); // For mock booking match
-                }
-            } else {
-                foreach ($v['courts'] as $c) {
-                    $venue->courts()->create(['name' => $c['name'], 'type' => $v['type']]);
-                }
-                // Generate range courts for QK5
-                if ($v['name'] == 'Sân Cầu Lông Quân Khu 5') {
-                    for ($i = 3; $i <= 10; $i++) {
-                        $venue->courts()->create(['name' => "Sân $i", 'type' => 'badminton']);
-                    }
-                }
-            }
+            // Add default courts
+            $venue->courts()->create(['name' => 'Sân 1', 'type' => $v['type']]);
+            $venue->courts()->create(['name' => 'Sân 2', 'type' => $v['type']]);
+        }
 
-            // Extras
-            foreach ($v['extras'] as $e) {
-                $venue->extras()->create($e);
-            }
+        // 2. Generated Data for Major Cities (Aiming for ~1000 total)
+        $cities = [
+            'Ha Noi' => ['lat' => 21.0285, 'lng' => 105.8542],
+            'Ho Chi Minh' => ['lat' => 10.8231, 'lng' => 106.6297],
+            'Da Nang' => ['lat' => 16.0544, 'lng' => 108.2022],
+            'Hai Phong' => ['lat' => 20.8449, 'lng' => 106.6881],
+            'Can Tho' => ['lat' => 10.0452, 'lng' => 105.7469],
+            'Bien Hoa' => ['lat' => 10.9575, 'lng' => 106.8427],
+            'Nha Trang' => ['lat' => 12.2388, 'lng' => 109.1967],
+            'Hue' => ['lat' => 16.4637, 'lng' => 107.5909],
+            'Buon Ma Thuot' => ['lat' => 12.6675, 'lng' => 108.0383],
+            'Vinh' => ['lat' => 18.6733, 'lng' => 105.6871],
+            'Vung Tau' => ['lat' => 10.3460, 'lng' => 107.0843],
+            'Quy Nhon' => ['lat' => 13.7830, 'lng' => 109.2197],
+            'Long Xuyen' => ['lat' => 10.3759, 'lng' => 105.4185],
+            'Thai Nguyen' => ['lat' => 21.5942, 'lng' => 105.8482],
+            'Thanh Hoa' => ['lat' => 19.8077, 'lng' => 105.7766],
+            'Nam Dinh' => ['lat' => 20.4190, 'lng' => 106.1738],
+            'Viet Tri' => ['lat' => 21.3216, 'lng' => 105.3995],
+            'Phan Thiet' => ['lat' => 10.9254, 'lng' => 108.1032],
+            'Ca Mau' => ['lat' => 9.1764, 'lng' => 105.1524],
+            'Da Lat' => ['lat' => 11.9404, 'lng' => 108.4583],
+            'Pleiku' => ['lat' => 13.9740, 'lng' => 108.0039],
+            'My Tho' => ['lat' => 10.3541, 'lng' => 106.3664],
+            'Rach Gia' => ['lat' => 10.0076, 'lng' => 105.0772],
+            'Dong Hoi' => ['lat' => 17.4765, 'lng' => 106.5984],
+            'Ha Long' => ['lat' => 20.9499, 'lng' => 107.0733],
+        ];
 
-            // Reviews
-            foreach ($v['reviews'] as $r) {
-                // We fake the user for review
-                $venue->reviews()->create([
-                    'user_id' => $user->id,
-                    'rating' => $r['rating'],
-                    'comment' => $r['comment'],
-                    'date' => $r['date']
+        $types = ['football', 'badminton', 'tennis', 'pickleball', 'basketball', 'swimming', 'gym'];
+
+        foreach ($cities as $cityName => $coords) {
+            // Generate ~40 venues per city * 25 cities = 1000 venues
+            for ($i = 1; $i <= 40; $i++) {
+                $type = $types[array_rand($types)];
+                // Random offset within ~10km (0.08 degrees approx)
+                $latOffset = (mt_rand(-800, 800) / 10000); 
+                $lngOffset = (mt_rand(-800, 800) / 10000);
+                
+                $lat = $coords['lat'] + $latOffset;
+                $lng = $coords['lng'] + $lngOffset;
+
+                $name = "Sân $type $cityName #$i";
+                
+                \App\Models\Venue::create([
+                    'name' => $name,
+                    'type' => $type,
+                    'lat' => $lat,
+                    'lng' => $lng,
+                    'address' => "Địa chỉ ngẫu nhiên tại $cityName",
+                    'price' => (mt_rand(5, 50) * 10000),
+                    'pricing_type' => 'hour',
+                    'description' => "Sân tập $type chất lượng cao tại $cityName.",
+                    'rating' => mt_rand(35, 50) / 10,
                 ]);
             }
         }

@@ -23,6 +23,24 @@ class VenueController extends Controller
             $query->where('type', $request->input('type'));
         }
 
+        // Bounds filter (Map View)
+        // Bounds filter (Map View) - DISABLED as per request to load all data
+        // if ($request->has(['north', 'south', 'east', 'west'])) {
+        //     $north = (float) $request->input('north');
+        //     $south = (float) $request->input('south');
+        //     $east = (float) $request->input('east');
+        //     $west = (float) $request->input('west');
+
+        //     // PostGIS: ST_MakeEnvelope(xmin, ymin, xmax, ymax, srid)
+        //     $envelopeSql = "ST_MakeEnvelope(?, ?, ?, ?, 4326)";
+            
+        //     // Check if coordinates point is within the envelope
+        //     // Note: ST_MakeEnvelope handles rectangle. 
+        //     // Warning: If map crosses dateline (180/-180), this simple envelope might fail, 
+        //     // but for Vietnam (102-110E) it is safe.
+        //     $query->whereRaw("ST_Intersects(coordinates::geometry, $envelopeSql)", [$west, $south, $east, $north]);
+        // }
+
         // Location-based Sorting (PostGIS)
         if ($request->has('lat') && $request->has('lng')) {
             $lat = $request->input('lat');
@@ -36,10 +54,22 @@ class VenueController extends Controller
                   ->orderByRaw("coordinates <-> $pointSql", [$lng, $lat]);
         }
 
-        $limit = $request->input('limit', 12);
+        // Optimization for Map View (select subset of fields)
+        if ($request->input('view') === 'map') {
+            $query->select(['id', 'name', 'type', 'lat', 'lng', 'address', 'price', 'pricing_type', 'image', 'rating', 'total_reviews', 'description']);
+        } else {
+            // Eager load relations for List/Detail view
+            $query->with(['courts', 'extras', 'reviews']);
+        }
+        
+        // Pagination logic
+        if ($request->has('limit')) {
+            $limit = $request->input('limit');
+            return response()->json($query->paginate($limit));
+        }
 
-        // Eager load necessary relations and paginate
-        return response()->json($query->with(['courts', 'extras', 'reviews'])->paginate($limit));
+        // Return all if no limit specified
+        return response()->json($query->get());
     }
 
     public function show($id)

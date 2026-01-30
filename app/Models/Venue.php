@@ -13,6 +13,7 @@ class Venue extends Model
         'rating' => 'float',
         'lat' => 'float',
         'lng' => 'float',
+        'total_reviews' => 'integer',
     ];
 
     public function courts()
