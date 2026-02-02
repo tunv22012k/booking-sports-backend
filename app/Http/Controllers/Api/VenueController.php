@@ -48,10 +48,13 @@ class VenueController extends Controller
 
             // Use PostGIS for distance (in KM) and sorting
             // ST_MakePoint(lng, lat) because PostGIS uses (x, y) order
-            $pointSql = "ST_SetSRID(ST_MakePoint(?, ?), 4326)";
+            $userPoint = "ST_SetSRID(ST_MakePoint(?, ?), 4326)"; // User location (Geometry)
             
-            $query->selectRaw("*, (ST_Distance(coordinates, $pointSql) / 1000) as distance", [$lng, $lat])
-                  ->orderByRaw("coordinates <-> $pointSql", [$lng, $lat]);
+            // Calculate distance using optimized 'coordinates' column (Geography type)
+            // 'coordinates' is Geography, so ST_Distance returns Meters by default.
+            // We cast userPoint to geography to match.
+            $query->selectRaw("*, (ST_Distance(coordinates, $userPoint::geography) / 1000) as distance", [$lng, $lat])
+                  ->orderByRaw("coordinates <-> $userPoint", [$lng, $lat]);
         }
 
         // Optimization for Map View (select subset of fields)
