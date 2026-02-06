@@ -2,60 +2,26 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Events\MessageReactionUpdated;
 use App\Http\Controllers\Controller;
-use App\Models\Message;
-use App\Models\MessageReaction;
-use Illuminate\Http\Request;
+use App\Services\ReactionService;
+use App\Http\Requests\Chat\ReactRequest;
 
 class ReactionController extends Controller
 {
-    public function react(Request $request, $messageId)
+    protected $reactionService;
+
+    public function __construct(ReactionService $reactionService)
     {
-        $request->validate([
-            'reaction' => 'required|string|max:10', // Allow small string for emoji
-        ]);
+        $this->reactionService = $reactionService;
+    }
 
-        $user = $request->user();
-        $message = Message::findOrFail($messageId);
-        
-        // Find existing reaction by this user on this message
-        $existing = MessageReaction::where('message_id', $messageId)
-            ->where('user_id', $user->id)
-            ->first();
-
-        $action = 'added';
-
-        if ($existing) {
-            if ($existing->reaction === $request->reaction) {
-                // Same reaction -> Toggle OFF
-                $existing->delete();
-                $action = 'removed';
-            } else {
-                // Different reaction -> Update
-                $existing->update(['reaction' => $request->reaction]);
-                $action = 'updated';
-            }
-        } else {
-            // New reaction
-            MessageReaction::create([
-                'message_id' => $messageId,
-                'user_id' => $user->id,
-                'reaction' => $request->reaction
-            ]);
+    public function react(ReactRequest $request, $messageId)
+    {
+        try {
+            $result = $this->reactionService->reactToMessage($request->user(), $messageId, $request->reaction);
+            return $this->successResponse($result);
+        } catch (\Exception $e) {
+            return $this->errorResponse($e->getMessage(), 400);
         }
-
-        // Broadcast event
-        // We need to send the UPDATED list of reactions for this message
-        // Or just the specific change. Ideally, sending the fresh list prevents sync issues.
-        $message->load('reactions'); // Reload reactions
-        
-        broadcast(new MessageReactionUpdated($messageId, $message->chat_id, $message->reactions))->toOthers();
-
-        return response()->json([
-            'status' => 'success', 
-            'action' => $action,
-            'reactions' => $message->reactions
-        ]);
     }
 }

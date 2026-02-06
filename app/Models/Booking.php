@@ -6,7 +6,23 @@ use Illuminate\Database\Eloquent\Model;
 
 class Booking extends Model
 {
-    protected $guarded = [];
+    protected $fillable = [
+        'user_id',
+        'court_id',
+        'date',
+        'start_time',
+        'end_time',
+        'total_price',
+        'status',
+        'is_paid',
+        'payment_code',
+        'pending_expires_at',
+        'extras',
+        'is_for_transfer',
+        'transfer_status',
+        'transfer_price',
+        'transfer_note',
+    ];
 
     protected $casts = [
         'is_paid' => 'boolean',

@@ -3,29 +3,22 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Review;
-use App\Models\Venue;
+use App\Services\ReviewService;
+use App\Http\Requests\Review\StoreReviewRequest;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 
 class ReviewController extends Controller
 {
-    public function store(Request $request, $venueId)
+    protected $reviewService;
+
+    public function __construct(ReviewService $reviewService)
     {
-        $request->validate([
-            'rating' => 'required|integer|min:1|max:5',
-            'comment' => 'required|string|max:1000',
-        ]);
+        $this->reviewService = $reviewService;
+    }
 
-        $venue = Venue::findOrFail($venueId);
-
-        $review = Review::create([
-            'user_id' => Auth::id(),
-            'venue_id' => $venue->id,
-            'rating' => $request->rating,
-            'comment' => $request->comment,
-        ]);
-
-        return response()->json($review->load('user'), 201);
+    public function store(StoreReviewRequest $request, $venueId)
+    {
+        $review = $this->reviewService->storeReview($request->user(), $venueId, $request->validated());
+        return $this->successResponse($review->load('user'), null, 201);
     }
 }

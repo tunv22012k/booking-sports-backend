@@ -3,14 +3,21 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
+use App\Services\AuthService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Laravel\Socialite\Facades\Socialite;
 use Laravel\Socialite\Two\InvalidStateException;
+use GuzzleHttp\Client;
 
 class AuthController extends Controller
 {
+    protected $authService;
+
+    public function __construct(AuthService $authService)
+    {
+        $this->authService = $authService;
+    }
+
     /**
      * Redirect the user to the Google authentication page.
      *
@@ -30,27 +37,16 @@ class AuthController extends Controller
     {
         try {
             $googleUser = Socialite::driver('google')
-                ->setHttpClient(new \GuzzleHttp\Client(['verify' => false]))
+                ->setHttpClient(new Client(['verify' => false]))
                 ->stateless()
                 ->user();
         } catch (InvalidStateException $e) {
-            return response()->json(['error' => 'Invalid state'], 400);
+            return $this->errorResponse('Invalid state', 400);
+        } catch (\Exception $e) {
+            return $this->errorResponse('Authentication failed', 400);
         }
 
-        $user = User::updateOrCreate(
-            ['email' => $googleUser->getEmail()],
-            [
-                'name' => $googleUser->getName(),
-                'google_id' => $googleUser->getId(),
-                'avatar' => $googleUser->getAvatar(),
-                'password' => null, // Password is null for social login users
-            ]
-        );
-
-        // Force update updated_at to reflect latest login activity even if data hasn't changed
-        $user->touch();
-
-        $token = $user->createToken('auth_token')->plainTextToken;
+        $token = $this->authService->handleGoogleLogin($googleUser);
 
         // Redirect to frontend with token
         return redirect()->to('http://localhost:3000/auth/callback?token=' . $token);
@@ -58,11 +54,7 @@ class AuthController extends Controller
 
     public function logout(Request $request)
     {
-        $user = $request->user();
-        if ($user) {
-            $user->touch(); // Update last activity before logout
-            $user->tokens()->delete(); // Revoke all tokens (or just current one)
-        }
-        return response()->json(['message' => 'Logged out']);
+        $this->authService->logout($request->user());
+        return $this->successResponse(null, 'Logged out');
     }
 }
