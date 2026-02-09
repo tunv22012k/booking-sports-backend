@@ -16,6 +16,12 @@ class ReviewController extends Controller
         $this->reviewService = $reviewService;
     }
 
+    public function index($venueId, Request $request)
+    {
+        $reviews = $this->reviewService->getReviews($venueId, $request->all());
+        return $this->successResponse($reviews);
+    }
+
     public function store(StoreReviewRequest $request, $venueId)
     {
         $review = $this->reviewService->storeReview($request->user(), $venueId, $request->validated());

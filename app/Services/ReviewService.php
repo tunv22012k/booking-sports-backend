@@ -28,4 +28,9 @@ class ReviewService
 
         return $this->reviewRepository->createReview($reviewData);
     }
+
+    public function getReviews($venueId, $filters)
+    {
+        return $this->reviewRepository->getReviewsByVenueId($venueId, $filters);
+    }
 }

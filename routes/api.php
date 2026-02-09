@@ -54,4 +54,5 @@ Route::get('/venues', [\App\Http\Controllers\Api\VenueController::class, 'index'
 Route::get('/venues/{id}', [\App\Http\Controllers\Api\VenueController::class, 'show']);
 Route::get('/venues/{id}/bookings', [\App\Http\Controllers\Api\VenueController::class, 'getBookings']);
 Route::get('/venues/{id}/pending-slots', [\App\Http\Controllers\Api\BookingController::class, 'getPendingSlots']);
+Route::get('/venues/{id}/reviews', [\App\Http\Controllers\Api\ReviewController::class, 'index']);
 
