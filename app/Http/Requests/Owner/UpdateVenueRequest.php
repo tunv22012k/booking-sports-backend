@@ -24,10 +24,22 @@ class UpdateVenueRequest extends FormRequest
             'email' => 'nullable|email|max:255',
             'operating_hours' => 'nullable|string|max:100',
             'image' => 'nullable|string|max:500',
+            'image_file' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
             'is_active' => 'sometimes|boolean',
-            'amenities' => 'nullable|array',
-            'amenities.*.name' => 'required_with:amenities|string|max:100',
-            'amenities.*.icon' => 'nullable|string|max:100',
+            'amenities' => 'nullable', // Can be JSON string from FormData
         ];
+    }
+
+    /**
+     * Prepare the data for validation.
+     */
+    protected function prepareForValidation(): void
+    {
+        // Parse amenities from JSON string if needed (when sent as FormData)
+        if ($this->has('amenities') && is_string($this->amenities)) {
+            $this->merge([
+                'amenities' => json_decode($this->amenities, true) ?? [],
+            ]);
+        }
     }
 }

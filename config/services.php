@@ -39,6 +39,29 @@ return [
         'client_id' => env('GOOGLE_CLIENT_ID'),
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),
         'redirect' => env('GOOGLE_REDIRECT_URI'),
+        'refresh_token' => env('GOOGLE_REFRESH_TOKEN'),
+        'drive_folder_id' => env('GOOGLE_DRIVE_FOLDER_ID'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | File Upload Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Supported providers: "local", "s3", "r2", "google-drive"
+    |
+    */
+    'file_upload' => [
+        'provider' => env('FILE_UPLOAD_PROVIDER', 'local'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Cloudflare R2 Configuration
+    |--------------------------------------------------------------------------
+    */
+    'cloudflare' => [
+        'r2_public_url' => env('CLOUDFLARE_R2_PUBLIC_URL'),
     ],
 
 ];

@@ -23,6 +23,17 @@ class OwnerVenueRepository extends BaseRepository
     }
 
     /**
+     * Get paginated venues owned by a specific user.
+     */
+    public function getByOwnerPaginated(int $ownerId, int $perPage = 10)
+    {
+        return $this->model->where('owner_id', $ownerId)
+            ->with(['courts', 'amenities'])
+            ->orderBy('created_at', 'desc')
+            ->paginate($perPage);
+    }
+
+    /**
      * Find a venue by ID, ensuring it belongs to the given owner.
      */
     public function findByOwner(int $id, int $ownerId)

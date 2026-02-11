@@ -7,6 +7,10 @@ use App\Repositories\CourtScheduleRepository;
 use App\Repositories\OwnerExtraRepository;
 use App\Models\Court;
 use App\Models\VenueAmenity;
+use App\Jobs\UploadVenueImageJob;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Exception;
 
 class OwnerVenueService
@@ -27,9 +31,9 @@ class OwnerVenueService
 
     // ── Venue ──
 
-    public function getOwnerVenues($user)
+    public function getOwnerVenues($user, int $perPage = 10)
     {
-        return $this->venueRepository->getByOwner($user->id);
+        return $this->venueRepository->getByOwnerPaginated($user->id, $perPage);
     }
 
     public function getVenueDetail($id, $user)
@@ -43,14 +47,32 @@ class OwnerVenueService
         return $venue;
     }
 
-    public function createVenue($user, array $data)
+    public function createVenue($user, array $data, ?UploadedFile $imageFile = null)
     {
         $data['owner_id'] = $user->id;
+        
+        // Extract amenities before creating venue (it's a relationship, not a column)
+        $amenities = $data['amenities'] ?? [];
+        unset($data['amenities']);
+        unset($data['image_file']); // Remove file from data
+        
+        // If there's an image file, save it temporarily first
+        $tempImagePath = null;
+        if ($imageFile) {
+            // Generate unique filename
+            $filename = now()->format('Ymd_His') . '_' . Str::random(8) . '.' . $imageFile->getClientOriginalExtension();
+            $tempImagePath = 'venues/temp/' . $filename;
+            
+            // Store temporarily - set as placeholder URL until queue processes
+            $imageFile->storeAs('venues/temp', $filename, 'public');
+            $data['image'] = Storage::disk('public')->url($tempImagePath);
+        }
+        
         $venue = $this->venueRepository->create($data);
 
         // Create amenities if provided
-        if (!empty($data['amenities'])) {
-            foreach ($data['amenities'] as $amenity) {
+        if (!empty($amenities)) {
+            foreach ($amenities as $amenity) {
                 $venue->amenities()->create([
                     'name' => $amenity['name'],
                     'icon' => $amenity['icon'] ?? null,
@@ -58,10 +80,15 @@ class OwnerVenueService
             }
         }
 
+        // Dispatch job to upload image to Google Drive
+        if ($tempImagePath) {
+            UploadVenueImageJob::dispatch($venue->id, $tempImagePath);
+        }
+
         return $venue->load('amenities');
     }
 
-    public function updateVenue($id, $user, array $data)
+    public function updateVenue($id, $user, array $data, ?UploadedFile $imageFile = null)
     {
         $venue = $this->venueRepository->findByOwner($id, $user->id);
 
@@ -69,17 +96,42 @@ class OwnerVenueService
             throw new Exception('Không tìm thấy địa điểm', 404);
         }
 
+        // Extract amenities before updating venue (it's a relationship, not a column)
+        $amenities = null;
+        if (array_key_exists('amenities', $data)) {
+            $amenities = $data['amenities'];
+            unset($data['amenities']);
+        }
+        unset($data['image_file']); // Remove file from data
+
+        // If there's an image file, save it temporarily first
+        $tempImagePath = null;
+        if ($imageFile) {
+            // Generate unique filename
+            $filename = now()->format('Ymd_His') . '_' . Str::random(8) . '.' . $imageFile->getClientOriginalExtension();
+            $tempImagePath = 'venues/temp/' . $filename;
+            
+            // Store temporarily - set as placeholder URL until queue processes
+            $imageFile->storeAs('venues/temp', $filename, 'public');
+            $data['image'] = Storage::disk('public')->url($tempImagePath);
+        }
+
         $venue->update($data);
 
         // Sync amenities if provided
-        if (isset($data['amenities'])) {
+        if ($amenities !== null) {
             $venue->amenities()->delete();
-            foreach ($data['amenities'] as $amenity) {
+            foreach ($amenities as $amenity) {
                 $venue->amenities()->create([
                     'name' => $amenity['name'],
                     'icon' => $amenity['icon'] ?? null,
                 ]);
             }
+        }
+
+        // Dispatch job to upload image to Google Drive
+        if ($tempImagePath) {
+            UploadVenueImageJob::dispatch($venue->id, $tempImagePath);
         }
 
         return $venue->refresh()->load('amenities');

@@ -7,6 +7,7 @@ use App\Http\Requests\Owner\StoreVenueRequest;
 use App\Http\Requests\Owner\UpdateVenueRequest;
 use App\Services\OwnerVenueService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Exception;
 
 class VenueController extends Controller
@@ -21,9 +22,10 @@ class VenueController extends Controller
     /**
      * GET /owner/venues
      */
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        $venues = $this->ownerVenueService->getOwnerVenues(auth()->user());
+        $perPage = $request->input('per_page', 10);
+        $venues = $this->ownerVenueService->getOwnerVenues(auth()->user(), $perPage);
         return response()->json($venues);
     }
 
@@ -35,7 +37,8 @@ class VenueController extends Controller
         try {
             $venue = $this->ownerVenueService->createVenue(
                 auth()->user(),
-                $request->validated()
+                $request->validated(),
+                $request->file('image_file')
             );
             return response()->json($venue, 201);
         } catch (Exception $e) {
@@ -65,7 +68,8 @@ class VenueController extends Controller
             $venue = $this->ownerVenueService->updateVenue(
                 $id,
                 auth()->user(),
-                $request->validated()
+                $request->validated(),
+                $request->file('image_file')
             );
             return response()->json($venue);
         } catch (Exception $e) {
