@@ -9,12 +9,11 @@ class Venue extends Model
     protected $guarded = [];
 
     protected $casts = [
-        'price' => 'integer',
-        'rating' => 'float',
         'lat' => 'float',
         'lng' => 'float',
+        'rating' => 'float',
         'total_reviews' => 'integer',
-        // 'coordinates' field is handled via DB::raw in queries usually
+        'is_active' => 'boolean',
     ];
 
     /**
@@ -27,9 +26,7 @@ class Venue extends Model
                 $id = $venue->id;
                 $lat = $venue->lat;
                 $lng = $venue->lng;
-                
-                // Perform direct update to set PostGIS column
-                // We use DB statement to bypass Eloquent's lack of Geography support
+
                 \Illuminate\Support\Facades\DB::statement(
                     "UPDATE venues SET coordinates = ST_SetSRID(ST_MakePoint(?, ?), 4326) WHERE id = ?",
                     [$lng, $lat, $id]
@@ -38,14 +35,21 @@ class Venue extends Model
         });
     }
 
+    // ── Relationships ──
+
+    public function owner()
+    {
+        return $this->belongsTo(User::class, 'owner_id');
+    }
+
     public function courts()
     {
         return $this->hasMany(Court::class);
     }
 
-    public function extras()
+    public function amenities()
     {
-        return $this->hasMany(VenueExtra::class);
+        return $this->hasMany(VenueAmenity::class);
     }
 
     public function reviews()

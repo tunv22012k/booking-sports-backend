@@ -11,11 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('venue_extras', function (Blueprint $table) {
+        Schema::create('venue_amenities', function (Blueprint $table) {
             $table->id();
             $table->foreignId('venue_id')->constrained()->onDelete('cascade');
-            $table->string('name'); // Thuê vợt
-            $table->decimal('price', 15, 0);
+            $table->string('name'); // WiFi, Bãi xe, Phòng thay đồ, Căng tin, ...
+            $table->string('icon')->nullable();
             $table->timestamps();
         });
     }
@@ -25,6 +25,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('venue_extras');
+        Schema::dropIfExists('venue_amenities');
     }
 };

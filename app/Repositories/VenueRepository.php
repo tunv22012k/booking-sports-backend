@@ -29,27 +29,25 @@ class VenueRepository extends BaseRepository
             $query->where('type', $filters['type']);
         }
 
+        // Only active venues
+        $query->where('is_active', true);
+
         // Location-based Sorting (PostGIS)
         if (!empty($filters['lat']) && !empty($filters['lng'])) {
             $lat = $filters['lat'];
             $lng = $filters['lng'];
 
-            // Use PostGIS for distance (in KM) and sorting
-            // ST_MakePoint(lng, lat) because PostGIS uses (x, y) order
-            $userPoint = "ST_SetSRID(ST_MakePoint(?, ?), 4326)"; // User location (Geometry)
+            $userPoint = "ST_SetSRID(ST_MakePoint(?, ?), 4326)";
             
-            // Calculate distance using optimized 'coordinates' column (Geography type)
-            // 'coordinates' is Geography, so ST_Distance returns Meters by default.
             $query->selectRaw("*, (ST_Distance(coordinates, $userPoint::geography) / 1000) as distance", [$lng, $lat])
                   ->orderByRaw("coordinates <-> $userPoint", [$lng, $lat]);
         }
 
-        // Optimization for Map View (select subset of fields)
+        // Optimization for Map View
         if (isset($filters['view']) && $filters['view'] === 'map') {
-            $query->select(['id', 'name', 'type', 'lat', 'lng', 'address', 'price', 'pricing_type', 'image', 'rating', 'total_reviews', 'description']);
+            $query->select(['id', 'name', 'type', 'lat', 'lng', 'address', 'image', 'rating', 'total_reviews', 'description']);
         } else {
-            // Eager load relations for List/Detail view
-            $query->with(['courts', 'extras', 'reviews']);
+            $query->with(['courts', 'amenities', 'reviews']);
         }
         
         if ($limit) {

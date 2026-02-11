@@ -25,6 +25,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/chats/{chatId}/read', [\App\Http\Controllers\Api\ChatController::class, 'markAsRead']);
     Route::get('/chats', [\App\Http\Controllers\Api\ChatController::class, 'getChats']);
     Route::get('/users', [\App\Http\Controllers\Api\UserController::class, 'index']);
+    Route::post('/user/profile', [\App\Http\Controllers\Api\UserController::class, 'updateProfile']);
     Route::get('/users/{id}', [\App\Http\Controllers\Api\UserController::class, 'show']);
     Route::post('/logout', [\App\Http\Controllers\Api\AuthController::class, 'logout']);
     
@@ -49,6 +50,38 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/venues/{id}/reviews', [\App\Http\Controllers\Api\ReviewController::class, 'store']);
 });
 
+// ── Owner Routes ──
+Route::middleware(['auth:sanctum', 'owner'])->prefix('owner')->group(function () {
+    // Venues
+    Route::get('/venues', [\App\Http\Controllers\Api\Owner\VenueController::class, 'index']);
+    Route::post('/venues', [\App\Http\Controllers\Api\Owner\VenueController::class, 'store']);
+    Route::get('/venues/{id}', [\App\Http\Controllers\Api\Owner\VenueController::class, 'show']);
+    Route::put('/venues/{id}', [\App\Http\Controllers\Api\Owner\VenueController::class, 'update']);
+    Route::delete('/venues/{id}', [\App\Http\Controllers\Api\Owner\VenueController::class, 'destroy']);
+
+    // Courts (nested under venue)
+    Route::get('/venues/{venueId}/courts', [\App\Http\Controllers\Api\Owner\CourtController::class, 'index']);
+    Route::post('/venues/{venueId}/courts', [\App\Http\Controllers\Api\Owner\CourtController::class, 'store']);
+    Route::get('/courts/{id}', [\App\Http\Controllers\Api\Owner\CourtController::class, 'show']);
+    Route::put('/courts/{id}', [\App\Http\Controllers\Api\Owner\CourtController::class, 'update']);
+    Route::delete('/courts/{id}', [\App\Http\Controllers\Api\Owner\CourtController::class, 'destroy']);
+
+    // Court Schedules
+    Route::get('/courts/{courtId}/schedules', [\App\Http\Controllers\Api\Owner\CourtScheduleController::class, 'index']);
+    Route::post('/courts/{courtId}/schedules', [\App\Http\Controllers\Api\Owner\CourtScheduleController::class, 'store']);
+    Route::put('/schedules/{id}', [\App\Http\Controllers\Api\Owner\CourtScheduleController::class, 'update']);
+    Route::delete('/schedules/{id}', [\App\Http\Controllers\Api\Owner\CourtScheduleController::class, 'destroy']);
+
+    // Owner Extras (Catalog - owner defines extras, shared across all venues/courts)
+    Route::get('/extras', [\App\Http\Controllers\Api\Owner\VenueExtraController::class, 'index']);
+    Route::post('/extras', [\App\Http\Controllers\Api\Owner\VenueExtraController::class, 'store']);
+    Route::put('/extras/{id}', [\App\Http\Controllers\Api\Owner\VenueExtraController::class, 'update']);
+    Route::delete('/extras/{id}', [\App\Http\Controllers\Api\Owner\VenueExtraController::class, 'destroy']);
+
+    // Sync extras to a court (attach from owner catalog)
+    Route::post('/courts/{courtId}/sync-extras', [\App\Http\Controllers\Api\Owner\CourtController::class, 'syncExtras']);
+});
+
 // Public Routes
 Route::get('/venues', [\App\Http\Controllers\Api\VenueController::class, 'index']);
 Route::get('/venues/{id}', [\App\Http\Controllers\Api\VenueController::class, 'show']);
@@ -56,3 +89,6 @@ Route::get('/venues/{id}/bookings', [\App\Http\Controllers\Api\VenueController::
 Route::get('/venues/{id}/pending-slots', [\App\Http\Controllers\Api\BookingController::class, 'getPendingSlots']);
 Route::get('/venues/{id}/reviews', [\App\Http\Controllers\Api\ReviewController::class, 'index']);
 
+// Auth (public)
+Route::post('/register', [\App\Http\Controllers\Api\AuthController::class, 'register']);
+Route::post('/login', [\App\Http\Controllers\Api\AuthController::class, 'loginApi']);

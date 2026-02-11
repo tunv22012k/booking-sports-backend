@@ -15,18 +15,18 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-        
-        // Ensure at least one user exists for Auth login
-        if (!\App\Models\User::where('email', 'admin@example.com')->exists()) {
-             \App\Models\User::factory()->create([
+        // Create admin user
+        if (!User::where('email', 'admin@example.com')->exists()) {
+            User::create([
                 'name' => 'Admin User',
                 'email' => 'admin@example.com',
-                'password' => bcrypt('password'), // Or secure password
-             ]);
+                'password' => bcrypt('password'),
+                'role' => 'admin',
+            ]);
         }
 
         $this->call([
+            MarketplaceSeeder::class,
             VenueSeeder::class,
             BookingSeeder::class,
         ]);

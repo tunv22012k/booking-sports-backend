@@ -14,8 +14,10 @@ return new class extends Migration
         Schema::create('courts', function (Blueprint $table) {
             $table->id();
             $table->foreignId('venue_id')->constrained()->onDelete('cascade');
-            $table->string('name'); // Sân 1, Sân A
-            $table->string('type')->nullable(); // Optional override
+            $table->string('name');
+            $table->string('type')->nullable(); // Override venue type if needed
+            $table->text('description')->nullable();
+            $table->boolean('is_active')->default(true);
             $table->timestamps();
         });
     }

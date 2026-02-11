@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class BookingSeeder extends Seeder
@@ -12,66 +11,55 @@ class BookingSeeder extends Seeder
      */
     public function run(): void
     {
+        $user = \App\Models\User::where('role', 'customer')->first()
+            ?? \App\Models\User::first();
+
+        if (!$user) {
+            return;
+        }
+
         $bookings = [
             [
-                'venueName' => "Sân Cầu Lông Quân Khu 5",
-                'courtName' => "Sân 1",
-                'date' => "2026-01-21",
-                'start_time' => "18:00",
-                'end_time' => "19:00",
+                'venueName' => 'Sân Cầu Lông Quân Khu 5',
+                'courtName' => 'Sân 1',
+                'date' => now()->addDays(2)->toDateString(),
+                'start_time' => '18:00',
+                'end_time' => '19:00',
                 'price' => 100000,
-                'status' => "confirmed",
-                'is_for_transfer' => false
+                'status' => 'confirmed',
+                'is_for_transfer' => false,
             ],
             [
-                'venueName' => "Sân Bóng Đá Tuyên Sơn",
-                'courtName' => "Sân A",
-                'date' => "2026-01-25",
-                'start_time' => "17:00",
-                'end_time' => "18:30",
+                'venueName' => 'Sân Bóng Đá Tuyên Sơn',
+                'courtName' => 'Sân 1',
+                'date' => now()->addDays(5)->toDateString(),
+                'start_time' => '17:00',
+                'end_time' => '18:30',
                 'price' => 300000,
-                'status' => "pending",
-                'is_for_transfer' => false
+                'status' => 'pending',
+                'is_for_transfer' => false,
             ],
             [
-                'venueName' => "Sân Tennis Công Viên 29/3",
-                'courtName' => "Sân Chính",
-                'date' => "2026-01-10",
-                'start_time' => "06:00",
-                'end_time' => "07:00",
+                'venueName' => 'Sân Tennis Công Viên 29/3',
+                'courtName' => 'Sân 1',
+                'date' => now()->subDays(5)->toDateString(),
+                'start_time' => '06:00',
+                'end_time' => '07:00',
                 'price' => 150000,
-                'status' => "completed",
-                'is_for_transfer' => false
+                'status' => 'completed',
+                'is_for_transfer' => false,
             ],
-            [
-                'venueName' => "Sân Cầu Lông Chi Lăng",
-                'courtName' => "Sân 3",
-                'date' => "2026-01-28",
-                'start_time' => "19:00",
-                'end_time' => "20:00",
-                'price' => 120000,
-                'status' => "confirmed",
-                'is_for_transfer' => true,
-                'transferStatus' => 'available',
-                'transferNote' => "Mình bận đột xuất, cần để lại sân. Giá gốc!",
-                'transferPrice' => 120000
-            ]
         ];
-
-        $user = \App\Models\User::first() ?? \App\Models\User::factory()->create([
-             'name' => 'Demo User',
-             'email' => 'demo@example.com',
-             'password' => bcrypt('password'),
-        ]);
 
         foreach ($bookings as $b) {
             $venue = \App\Models\Venue::where('name', $b['venueName'])->first();
-            if (!$venue) continue;
+            if (!$venue) {
+                continue;
+            }
 
             $court = $venue->courts()->where('name', $b['courtName'])->first();
             if (!$court) {
-                // Should have been created by VenueSeeder logice
-                continue; 
+                continue;
             }
 
             \App\Models\Booking::create([
@@ -83,11 +71,7 @@ class BookingSeeder extends Seeder
                 'total_price' => $b['price'],
                 'status' => $b['status'],
                 'is_paid' => $b['status'] === 'confirmed' || $b['status'] === 'completed',
-                
-                'is_for_transfer' => $b['is_for_transfer'] ?? false,
-                'transfer_status' => $b['transferStatus'] ?? null,
-                'transfer_note' => $b['transferNote'] ?? null,
-                'transfer_price' => $b['transferPrice'] ?? null,
+                'is_for_transfer' => $b['is_for_transfer'],
             ]);
         }
     }

@@ -21,6 +21,9 @@ return new class extends Migration
             $table->decimal('total_price', 15, 0);
             $table->string('status')->default('pending'); // pending, confirmed, completed, cancelled
             $table->boolean('is_paid')->default(false);
+            $table->string('payment_code')->nullable();
+            $table->timestamp('pending_expires_at')->nullable();
+            $table->json('extras')->nullable();
 
             // Marketplace / Transfer
             $table->boolean('is_for_transfer')->default(false);

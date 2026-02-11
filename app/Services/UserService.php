@@ -38,4 +38,9 @@ class UserService
 
         return $user;
     }
+
+    public function updateProfile($user, $data)
+    {
+        return $this->userRepository->update($user->id, $data);
+    }
 }

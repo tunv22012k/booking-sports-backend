@@ -40,4 +40,23 @@ class UserController extends Controller
             return $this->errorResponse($e->getMessage(), 404);
         }
     }
+
+    public function updateProfile(Request $request)
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'phone' => 'nullable|string|max:20',
+            'avatar' => 'nullable|string',
+            // Add other fields as necessary
+        ]);
+
+        try {
+            $updatedUser = $this->userService->updateProfile($user, $validated);
+            return $this->successResponse($updatedUser, 'Profile updated successfully');
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to update profile: ' . $e->getMessage(), 500);
+        }
+    }
 }
