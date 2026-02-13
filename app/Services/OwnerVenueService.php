@@ -5,7 +5,9 @@ namespace App\Services;
 use App\Repositories\OwnerVenueRepository;
 use App\Repositories\CourtScheduleRepository;
 use App\Repositories\OwnerExtraRepository;
+use App\Repositories\BookingRepository;
 use App\Models\Court;
+use App\Models\CourtSchedule;
 use App\Models\VenueAmenity;
 use App\Models\Review;
 use App\Models\Booking;
@@ -20,15 +22,18 @@ class OwnerVenueService
     protected $venueRepository;
     protected $scheduleRepository;
     protected $extraRepository;
+    protected $bookingRepository;
 
     public function __construct(
         OwnerVenueRepository $venueRepository,
         CourtScheduleRepository $scheduleRepository,
-        OwnerExtraRepository $extraRepository
+        OwnerExtraRepository $extraRepository,
+        BookingRepository $bookingRepository
     ) {
         $this->venueRepository = $venueRepository;
         $this->scheduleRepository = $scheduleRepository;
         $this->extraRepository = $extraRepository;
+        $this->bookingRepository = $bookingRepository;
     }
 
     // ── Venue ──
@@ -472,6 +477,104 @@ class OwnerVenueService
             ->with(['user:id,name,phone', 'court:id,name'])
             ->orderBy('created_at', 'desc')
             ->paginate($perPage);
+    }
+
+    // ── Owner create booking (walk-in / tại quầy) ──
+
+    /**
+     * Create a booking by owner (walk-in or on behalf of customer).
+     */
+    public function createOwnerBooking($user, array $data): Booking
+    {
+        $courtId = (int) $data['court_id'];
+        $this->ensureCourtOwnership($courtId, $user);
+
+        $date = $this->toDateString($data['date']) ?? $data['date'];
+        $startTime = $data['start_time'];
+        $endTime = $data['end_time'];
+
+        $exists = $this->bookingRepository->findPendingOrConfirmed($courtId, $date, $startTime, $endTime);
+        if ($exists) {
+            throw new Exception('Khung giờ này đã có người đặt', 409);
+        }
+
+        $payload = [
+            'court_id' => $courtId,
+            'date' => $date,
+            'start_time' => $startTime,
+            'end_time' => $endTime,
+            'total_price' => (int) round((float) $data['total_price']),
+            'status' => 'confirmed',
+            'is_paid' => true,
+            'payment_code' => null,
+            'pending_expires_at' => null,
+        ];
+
+        if (!empty($data['user_id'])) {
+            $payload['user_id'] = (int) $data['user_id'];
+            $payload['guest_name'] = null;
+            $payload['guest_phone'] = null;
+        } else {
+            $payload['user_id'] = null;
+            $payload['guest_name'] = $data['guest_name'] ?? null;
+            $payload['guest_phone'] = $data['guest_phone'] ?? null;
+        }
+
+        $booking = $this->bookingRepository->create($payload);
+        return $booking->load(['court:id,name,venue_id', 'court.venue:id,name', 'user:id,name,phone,email']);
+    }
+
+    // ── Court availability (free vs booked slots) ──
+
+    /**
+     * Get availability for a court on a date: list of slots from court_schedules with status free/booked.
+     */
+    public function getCourtAvailability(int $courtId, string $date, $user): array
+    {
+        $this->ensureCourtOwnership($courtId, $user);
+
+        $dateStr = $this->toDateString($date) ?? now()->toDateString();
+        $dayOfWeek = (int) date('w', strtotime($dateStr)); // 0=Sun, 6=Sat
+
+        $schedules = CourtSchedule::where('court_id', $courtId)
+            ->forDay($dayOfWeek)
+            ->effectiveOn($dateStr)
+            ->orderBy('start_time')
+            ->get();
+
+        $bookings = $this->bookingRepository->getOccupiedBookingsForCourtDate($courtId, $dateStr);
+
+        $slots = [];
+        foreach ($schedules as $schedule) {
+            $sStart = substr((string) $schedule->start_time, 0, 5);
+            $sEnd = substr((string) $schedule->end_time, 0, 5);
+            $booking = $bookings->first(function ($b) use ($schedule) {
+                $bStart = substr((string) $b->start_time, 0, 5);
+                $bEnd = substr((string) $b->end_time, 0, 5);
+                return $schedule->start_time < $b->end_time && $schedule->end_time > $b->start_time;
+            });
+
+            $slots[] = [
+                'schedule_id' => $schedule->id,
+                'start_time' => $sStart,
+                'end_time' => $sEnd,
+                'price' => (int) $schedule->price,
+                'status' => $booking ? 'booked' : 'free',
+                'booking_id' => $booking?->id,
+                'booking' => $booking ? [
+                    'id' => $booking->id,
+                    'status' => $booking->status,
+                    'guest_name' => $booking->guest_name,
+                    'guest_phone' => $booking->guest_phone,
+                ] : null,
+            ];
+        }
+
+        return [
+            'date' => $dateStr,
+            'day_of_week' => $dayOfWeek,
+            'slots' => $slots,
+        ];
     }
 
     // ── Helpers ──

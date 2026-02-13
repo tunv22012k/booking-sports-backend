@@ -68,6 +68,9 @@ Route::middleware(['auth:sanctum', 'owner'])->prefix('owner')->group(function ()
     Route::put('/courts/{id}', [\App\Http\Controllers\Api\Owner\CourtController::class, 'update']);
     Route::delete('/courts/{id}', [\App\Http\Controllers\Api\Owner\CourtController::class, 'destroy']);
 
+    // Court availability (free vs booked slots)
+    Route::get('/courts/{courtId}/availability', [\App\Http\Controllers\Api\Owner\CourtController::class, 'availability']);
+
     // Court Schedules
     Route::get('/courts/{courtId}/schedules', [\App\Http\Controllers\Api\Owner\CourtScheduleController::class, 'index']);
     Route::post('/courts/{courtId}/schedules', [\App\Http\Controllers\Api\Owner\CourtScheduleController::class, 'store']);
@@ -86,6 +89,7 @@ Route::middleware(['auth:sanctum', 'owner'])->prefix('owner')->group(function ()
 
     // Owner Bookings
     Route::get('/bookings', [\App\Http\Controllers\Api\Owner\BookingController::class, 'index']);
+    Route::post('/bookings', [\App\Http\Controllers\Api\Owner\BookingController::class, 'store']);
     Route::get('/bookings/{id}', [\App\Http\Controllers\Api\Owner\BookingController::class, 'show']);
     Route::put('/bookings/{id}/status', [\App\Http\Controllers\Api\Owner\BookingController::class, 'updateStatus']);
 });

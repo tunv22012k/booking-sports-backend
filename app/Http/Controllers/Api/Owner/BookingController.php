@@ -3,14 +3,20 @@
 namespace App\Http\Controllers\Api\Owner;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Owner\StoreOwnerBookingRequest;
 use App\Models\Booking;
-use App\Models\Venue;
 use App\Models\Court;
+use App\Services\OwnerVenueService;
+use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class BookingController extends Controller
 {
+    public function __construct(
+        protected OwnerVenueService $ownerVenueService
+    ) {}
+
     /**
      * GET /owner/bookings
      * Get all bookings for owner's venues
@@ -55,11 +61,15 @@ class BookingController extends Controller
             $query->where('status', $status);
         }
 
-        // Search by customer name or phone
+        // Search by customer name or phone (user or guest)
         if ($search) {
-            $query->whereHas('user', function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('phone', 'like', "%{$search}%");
+            $query->where(function ($q) use ($search) {
+                $q->whereHas('user', function ($uq) use ($search) {
+                    $uq->where('name', 'like', "%{$search}%")
+                       ->orWhere('phone', 'like', "%{$search}%");
+                })
+                ->orWhere('guest_name', 'like', "%{$search}%")
+                ->orWhere('guest_phone', 'like', "%{$search}%");
             });
         }
 
@@ -129,5 +139,23 @@ class BookingController extends Controller
                 'court.venue:id,name,address,phone'
             ])
         ]);
+    }
+
+    /**
+     * POST /owner/bookings
+     * Create a booking (walk-in / đặt sân tại quầy).
+     */
+    public function store(StoreOwnerBookingRequest $request): JsonResponse
+    {
+        try {
+            $booking = $this->ownerVenueService->createOwnerBooking(auth()->user(), $request->validated());
+            return response()->json($booking, 201);
+        } catch (Exception $e) {
+            $code = (int) $e->getCode();
+            if ($code < 400 || $code >= 600) {
+                $code = 400;
+            }
+            return response()->json(['message' => $e->getMessage()], $code);
+        }
     }
 }

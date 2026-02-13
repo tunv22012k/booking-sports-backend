@@ -93,4 +93,21 @@ class BookingRepository extends BaseRepository
         ->whereIn('status', ['confirmed', 'completed'])
         ->get(['court_id', 'start_time', 'end_time']);
     }
+
+    /**
+     * Get all occupied bookings for a court on a date (confirmed, completed, or pending not expired).
+     */
+    public function getOccupiedBookingsForCourtDate(int $courtId, string $date)
+    {
+        return $this->model->where('court_id', $courtId)
+            ->where('date', $date)
+            ->where(function ($q) {
+                $q->whereIn('status', ['confirmed', 'completed'])
+                    ->orWhere(function ($pending) {
+                        $pending->where('status', 'pending')
+                            ->where('pending_expires_at', '>', now());
+                    });
+            })
+            ->get(['id', 'start_time', 'end_time', 'status', 'user_id', 'guest_name', 'guest_phone']);
+    }
 }

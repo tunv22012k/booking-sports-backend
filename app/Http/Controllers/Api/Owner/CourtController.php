@@ -92,6 +92,21 @@ class CourtController extends Controller
     }
 
     /**
+     * GET /owner/courts/{courtId}/availability
+     * Get free vs booked slots for a court on a date (for owner to monitor and create walk-in bookings).
+     */
+    public function availability(Request $request, int $courtId): JsonResponse
+    {
+        try {
+            $date = $request->input('date', now()->toDateString());
+            $result = $this->ownerVenueService->getCourtAvailability($courtId, $date, auth()->user());
+            return response()->json($result);
+        } catch (Exception $e) {
+            return response()->json(['message' => $e->getMessage()], (int) $e->getCode() ?: 500);
+        }
+    }
+
+    /**
      * POST /owner/courts/{courtId}/sync-extras
      * Attach/detach venue extras to a specific court.
      */
