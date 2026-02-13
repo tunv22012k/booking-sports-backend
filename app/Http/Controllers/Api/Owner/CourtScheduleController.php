@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api\Owner;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Owner\StoreCourtScheduleRequest;
+use App\Http\Requests\Owner\StoreCourtSchedulesBatchRequest;
+use App\Http\Requests\Owner\UpdateCourtScheduleRequest;
 use App\Services\OwnerVenueService;
 use Illuminate\Http\JsonResponse;
 use Exception;
@@ -54,7 +56,7 @@ class CourtScheduleController extends Controller
     /**
      * PUT /owner/schedules/{id}
      */
-    public function update(StoreCourtScheduleRequest $request, int $id): JsonResponse
+    public function update(UpdateCourtScheduleRequest $request, int $id): JsonResponse
     {
         try {
             $schedule = $this->ownerVenueService->updateSchedule(
@@ -64,6 +66,37 @@ class CourtScheduleController extends Controller
             );
             return response()->json($schedule);
         } catch (Exception $e) {
+            $code = (int) $e->getCode();
+            return response()->json(
+                ['message' => $e->getMessage()],
+                in_array($code, [400, 403, 404, 409]) ? $code : 500
+            );
+        }
+    }
+
+    /**
+     * POST /owner/courts/{courtId}/schedules/batch
+     */
+    public function storeBatch(StoreCourtSchedulesBatchRequest $request, int $courtId): JsonResponse
+    {
+        try {
+            $validated = $request->validated();
+            if (!isset($validated['schedules']) || !is_array($validated['schedules'])) {
+                return response()->json(['message' => 'Dữ liệu không hợp lệ'], 400);
+            }
+
+            $result = $this->ownerVenueService->createSchedulesBatch(
+                $courtId,
+                auth()->user(),
+                $validated['schedules']
+            );
+            return response()->json($result, 201);
+        } catch (Exception $e) {
+            \Log::error('Error in storeBatch', [
+                'courtId' => $courtId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             $code = (int) $e->getCode();
             return response()->json(
                 ['message' => $e->getMessage()],

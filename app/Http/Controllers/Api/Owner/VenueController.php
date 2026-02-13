@@ -89,4 +89,32 @@ class VenueController extends Controller
             return response()->json(['message' => $e->getMessage()], (int) $e->getCode() ?: 500);
         }
     }
+
+    /**
+     * GET /owner/venues/{id}/reviews
+     */
+    public function getReviews(Request $request, int $id): JsonResponse
+    {
+        try {
+            $perPage = $request->input('per_page', 10);
+            $reviews = $this->ownerVenueService->getVenueReviews($id, auth()->user(), $perPage);
+            return response()->json($reviews);
+        } catch (Exception $e) {
+            return response()->json(['message' => $e->getMessage()], (int) $e->getCode() ?: 500);
+        }
+    }
+
+    /**
+     * GET /owner/venues/{id}/bookings
+     */
+    public function getBookings(Request $request, int $id): JsonResponse
+    {
+        try {
+            $perPage = $request->input('per_page', 10);
+            $bookings = $this->ownerVenueService->getVenueBookings($id, auth()->user(), $perPage);
+            return response()->json($bookings);
+        } catch (Exception $e) {
+            return response()->json(['message' => $e->getMessage()], (int) $e->getCode() ?: 500);
+        }
+    }
 }

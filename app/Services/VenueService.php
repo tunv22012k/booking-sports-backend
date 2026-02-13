@@ -24,7 +24,7 @@ class VenueService
 
     public function getVenueDetails($id)
     {
-        return $this->venueRepository->findWithRelations($id, ['courts', 'extras', 'reviews.user']);
+        return $this->venueRepository->findWithRelations($id, ['courts.extras', 'reviews.user']);
     }
 
     public function getVenueBookings($venueId, $date)

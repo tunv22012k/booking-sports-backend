@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Carbon\Carbon;
 
 class CourtSchedule extends Model
 {
@@ -11,8 +12,9 @@ class CourtSchedule extends Model
     protected $casts = [
         'day_of_week' => 'integer',
         'price' => 'integer',
-        'effective_from' => 'date',
-        'effective_to' => 'date',
+        // Don't cast to 'date' to avoid timezone issues - we'll handle formatting in toArray()
+        // 'effective_from' => 'date',
+        // 'effective_to' => 'date',
         'is_active' => 'boolean',
     ];
 

@@ -58,6 +58,8 @@ Route::middleware(['auth:sanctum', 'owner'])->prefix('owner')->group(function ()
     Route::get('/venues/{id}', [\App\Http\Controllers\Api\Owner\VenueController::class, 'show']);
     Route::put('/venues/{id}', [\App\Http\Controllers\Api\Owner\VenueController::class, 'update']);
     Route::delete('/venues/{id}', [\App\Http\Controllers\Api\Owner\VenueController::class, 'destroy']);
+    Route::get('/venues/{id}/reviews', [\App\Http\Controllers\Api\Owner\VenueController::class, 'getReviews']);
+    Route::get('/venues/{id}/bookings', [\App\Http\Controllers\Api\Owner\VenueController::class, 'getBookings']);
 
     // Courts (nested under venue)
     Route::get('/venues/{venueId}/courts', [\App\Http\Controllers\Api\Owner\CourtController::class, 'index']);
@@ -69,6 +71,7 @@ Route::middleware(['auth:sanctum', 'owner'])->prefix('owner')->group(function ()
     // Court Schedules
     Route::get('/courts/{courtId}/schedules', [\App\Http\Controllers\Api\Owner\CourtScheduleController::class, 'index']);
     Route::post('/courts/{courtId}/schedules', [\App\Http\Controllers\Api\Owner\CourtScheduleController::class, 'store']);
+    Route::post('/courts/{courtId}/schedules/batch', [\App\Http\Controllers\Api\Owner\CourtScheduleController::class, 'storeBatch']);
     Route::put('/schedules/{id}', [\App\Http\Controllers\Api\Owner\CourtScheduleController::class, 'update']);
     Route::delete('/schedules/{id}', [\App\Http\Controllers\Api\Owner\CourtScheduleController::class, 'destroy']);
 
@@ -80,6 +83,11 @@ Route::middleware(['auth:sanctum', 'owner'])->prefix('owner')->group(function ()
 
     // Sync extras to a court (attach from owner catalog)
     Route::post('/courts/{courtId}/sync-extras', [\App\Http\Controllers\Api\Owner\CourtController::class, 'syncExtras']);
+
+    // Owner Bookings
+    Route::get('/bookings', [\App\Http\Controllers\Api\Owner\BookingController::class, 'index']);
+    Route::get('/bookings/{id}', [\App\Http\Controllers\Api\Owner\BookingController::class, 'show']);
+    Route::put('/bookings/{id}/status', [\App\Http\Controllers\Api\Owner\BookingController::class, 'updateStatus']);
 });
 
 // Public Routes

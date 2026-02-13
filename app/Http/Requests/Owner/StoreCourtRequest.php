@@ -18,6 +18,8 @@ class StoreCourtRequest extends FormRequest
             'type' => 'nullable|string|in:badminton,football,tennis,pickleball,basketball,swimming,gym',
             'description' => 'nullable|string',
             'is_active' => 'sometimes|boolean',
+            'extra_ids' => 'nullable|array',
+            'extra_ids.*' => 'integer|exists:owner_extras,id',
         ];
     }
 
